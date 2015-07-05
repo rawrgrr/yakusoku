@@ -329,7 +329,7 @@ if __name__ == "__main__":
                 should_redraw_all = False
                 for i in xrange(SKIP_LEVEL):
                     if selected_task_list.can_select_prev_task():
-                        if selected_position > 0 and list_position > 0:
+                        if selected_position == 0 and list_position > 0:
                             list_position -= 1
                             should_redraw_all = True
                         else:
