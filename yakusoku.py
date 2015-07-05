@@ -66,6 +66,14 @@ class TaskList:
     def add_task(self, description, status=TaskStatus.TODO, level=0):
         self.tasks.append(TaskItem(description, status, level))
 
+    def select(self, index):
+        if index < 0:
+            self.selected_task = 0
+        elif index >= len(self.tasks):
+            self.selected_task = len(self.tasks) - 1
+        else:
+            self.selected_task = index
+
     def can_select_next_task(self):
         return self.selected_task < len(self.tasks) - 1
 
@@ -256,8 +264,8 @@ if __name__ == "__main__":
                 selected_task_list.transition_selected_task()
                 if selected_task_list.is_selected_task_done():
                     selected_task_list.select_next_task()
-                    print_task_row(selected_task_list, prev_task)
-                print_task_row(selected_task_list, selected_task_list.selected_task)
+                    print_task_row(selected_task_list, prev_task, list_position)
+                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == 127 or key == curses.KEY_DC or key == curses.KEY_BACKSPACE:
                 # untransition task
@@ -265,8 +273,8 @@ if __name__ == "__main__":
                 selected_task_list.untransition_selected_task()
                 if selected_task_list.is_selected_task_todo():
                     selected_task_list.select_prev_task()
-                    print_task_row(selected_task_list, prev_task)
-                print_task_row(selected_task_list, selected_task_list.selected_task)
+                    print_task_row(selected_task_list, prev_task, list_position)
+                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             if key == ord('q') or key == ord('Q'):
                 # quit
@@ -301,41 +309,63 @@ if __name__ == "__main__":
             elif key == ord('J') or key == curses.KEY_NPAGE:
                 # go down by SKIP_LEVEL
                 prev_task = selected_task_list.selected_task
+                should_redraw_all = False
                 for i in xrange(SKIP_LEVEL):
                     if selected_task_list.can_select_next_task():
+                        if selected_position == selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
+                            list_position += 1
+                            should_redraw_all = True
+                        else:
+                            selected_position += 1
                         selected_task_list.select_next_task()
-                print_task_row(selected_task_list, prev_task)
-                print_task_row(selected_task_list, selected_task_list.selected_task)
+                if should_redraw_all:
+                    redraw_all()
+                print_task_row(selected_task_list, prev_task, list_position)
+                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == ord('K') or key == curses.KEY_PPAGE:
                 # go up by SKIP_LEVEL
                 prev_task = selected_task_list.selected_task
+                should_redraw_all = False
                 for i in xrange(SKIP_LEVEL):
                     if selected_task_list.can_select_prev_task():
+                        if selected_position > 0 and list_position > 0:
+                            list_position -= 1
+                            should_redraw_all = True
+                        else:
+                            selected_position -= 1
                         selected_task_list.select_prev_task()
-                print_task_row(selected_task_list, prev_task)
-                print_task_row(selected_task_list, selected_task_list.selected_task)
+                if should_redraw_all:
+                    redraw_all()
+                print_task_row(selected_task_list, prev_task, list_position)
+                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == curses.KEY_END or key == 336 or key == ord('L'):
                 # got to the bottom
                 prev_task = selected_task_list.selected_task
-                selected_task_list.select_last_task()
-                print_task_row(selected_task_list, prev_task)
-                print_task_row(selected_task_list, selected_task_list.selected_task)
+                #selected_task_list.select_last_task()
+                selected_position = list_position + selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1
+                selected_task_list.select(selected_position)
+                print_task_row(selected_task_list, prev_task, list_position)
+                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == curses.KEY_HOME or key == 337 or key == ord('H'):
                 # go to the top
                 prev_task = selected_task_list.selected_task
-                selected_task_list.select_first_task()
-                print_task_row(selected_task_list, prev_task)
-                print_task_row(selected_task_list, selected_task_list.selected_task)
+                #selected_task_list.select_first_task()
+                selected_position = list_position
+                selected_task_list.select(selected_position)
+                print_task_row(selected_task_list, prev_task, list_position)
+                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == ord('M'):
                 # go to the middle
                 prev_task = selected_task_list.selected_task
-                selected_task_list.select_middle_task()
-                print_task_row(selected_task_list, prev_task)
-                print_task_row(selected_task_list, selected_task_list.selected_task)
+                #selected_task_list.select_middle_task()
+                selected_position = list_position + (selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1) / 2
+                selected_task_list.select(selected_position)
+                print_task_row(selected_task_list, prev_task, list_position)
+                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == ord('i'):
                 # invert colors
@@ -345,12 +375,12 @@ if __name__ == "__main__":
             elif key == ord('1'):
                 # decrement level
                 selected_task_list.decrement_selected_task_level()
-                print_task_row(selected_task_list, selected_task_list.selected_task)
+                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == ord('2'):
                 # increment level
                 selected_task_list.increment_selected_task_level()
-                print_task_row(selected_task_list, selected_task_list.selected_task)
+                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             # debug information
             if DEBUG:
