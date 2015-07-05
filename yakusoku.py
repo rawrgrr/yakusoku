@@ -12,7 +12,6 @@ import time
 # TODO handle command line arguments
 # TODO loading from files
 # TODO handle levels (tab to increase level, shift-tab to decrease level
-# TODO handle long todo-lists (longer than one screen vertically)
 # TODO customize loading from files
 # TODO show help
 # TODO allow multiple files
@@ -136,7 +135,7 @@ DEFAULT_JSON_FILE = "tasks.json"
 selected_task_list = TaskList(DEFAULT_JSON_FILE)
 
 OFFSET_FOR_TOP = 2
-OFFSET_FOR_BOT = -2
+OFFSET_FOR_BOT = -3
 SKIP_LEVEL = 10
 INVERTED = False
 DEBUG = False
@@ -220,34 +219,43 @@ if __name__ == "__main__":
 
         def print_task_row(task_list, row, offset):
             task_status = task_list.tasks[row].status
+            row_offset = row + OFFSET_FOR_TOP - offset
+            level = task_list.tasks[row].level
+            description = task_list.tasks[row].description
+            selected = task_list.selected_task == row
 
             if INVERTED:
                 if task_status == TaskStatus.TODO:
-                    print_row(row + OFFSET_FOR_TOP - offset, " TODO    " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", STANDOUT_RED if task_list.selected_task == row else RED)
+                    print_row(row_offset, " TODO    " + (2 * level) * " " + description + "   ", STANDOUT_RED    if selected else RED)
                 elif task_status == TaskStatus.DOING:
-                    print_row(row + OFFSET_FOR_TOP - offset, " DOING   " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", STANDOUT_YELLOW if task_list.selected_task == row else YELLOW)
+                    print_row(row_offset, " DOING   " + (2 * level) * " " + description + "   ", STANDOUT_YELLOW if selected else YELLOW)
                 elif task_status == TaskStatus.DONE:
-                    print_row(row + OFFSET_FOR_TOP - offset, " DONE    " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", STANDOUT_GREEN if task_list.selected_task == row else GREEN)
+                    print_row(row_offset, " DONE    " + (2 * level) * " " + description + "   ", STANDOUT_GREEN  if selected else GREEN)
             else:
                 if task_status == TaskStatus.TODO:
-                    print_row(row + OFFSET_FOR_TOP - offset, " TODO    " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", RED if task_list.selected_task == row else STANDOUT_RED)
+                    print_row(row_offset, " TODO    " + (2 * level) * " " + description + "   ", RED             if selected else STANDOUT_RED)
                 elif task_status == TaskStatus.DOING:
-                    print_row(row + OFFSET_FOR_TOP - offset, " DOING   " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", YELLOW if task_list.selected_task == row else STANDOUT_YELLOW)
+                    print_row(row_offset, " DOING   " + (2 * level) * " " + description + "   ", YELLOW          if selected else STANDOUT_YELLOW)
                 elif task_status == TaskStatus.DONE:
-                    print_row(row + OFFSET_FOR_TOP - offset, " DONE    " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", GREEN if task_list.selected_task == row else STANDOUT_GREEN)
+                    print_row(row_offset, " DONE    " + (2 * level) * " " + description + "   ", GREEN           if selected else STANDOUT_GREEN)
 
 
         def redraw_all():
-            # print out everything once
-            for i in xrange(selected_task_list.size()):
-                if list_position <= i < (list_position + selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT):
-                    print_task_row(selected_task_list, i, list_position)
-
             # print title and status lines
             print_row(0, "[Demo TODO List]", STANDOUT_WHITE if INVERTED else BLUE)
-            print_row(1, " Status  Task", STANDOUT_WHITE if INVERTED else MAGENTA)
-            print_row(selected_window.getmaxyx()[0] + OFFSET_FOR_BOT, "", STANDOUT_WHITE if INVERTED else WHITE)
-            print_row(selected_window.getmaxyx()[0] + OFFSET_FOR_BOT, " j: down        k: up        space: transition task        backspace: untransition task", STANDOUT_WHITE if INVERTED else WHITE)
+            print_row(1, " Status  Task"   , STANDOUT_WHITE if INVERTED else MAGENTA)
+
+            # print out help
+            space_for_items = selected_window.getmaxyx()[0] + OFFSET_FOR_BOT
+            print_row(space_for_items, "", STANDOUT_WHITE if INVERTED else WHITE)
+            print_row(space_for_items, " j: down        k: up      space: transition task    backspace: untransition task", STANDOUT_WHITE if INVERTED else WHITE)
+            print_row(space_for_items + 1, "", STANDOUT_WHITE if INVERTED else WHITE)
+            print_row(space_for_items + 1, " H: top         M: middle      L: bottom      i: invert colors", STANDOUT_WHITE if INVERTED else WHITE)
+
+            # print out everything once
+            for i in xrange(selected_task_list.size()):
+                if list_position <= i < (list_position + space_for_items - OFFSET_FOR_TOP):
+                    print_task_row(selected_task_list, i, list_position)
 
             selected_window.refresh()
 
@@ -262,7 +270,12 @@ if __name__ == "__main__":
                 # transition task
                 prev_task = selected_task_list.selected_task
                 selected_task_list.transition_selected_task()
-                if selected_task_list.is_selected_task_done():
+                if selected_task_list.is_selected_task_done() and selected_task_list.can_select_next_task():
+                    if selected_position == selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
+                        list_position += 1
+                        redraw_all()
+                    else:
+                        selected_position += 1
                     selected_task_list.select_next_task()
                     print_task_row(selected_task_list, prev_task, list_position)
                 print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
@@ -271,12 +284,17 @@ if __name__ == "__main__":
                 # untransition task
                 prev_task = selected_task_list.selected_task
                 selected_task_list.untransition_selected_task()
-                if selected_task_list.is_selected_task_todo():
+                if selected_task_list.is_selected_task_todo() and selected_task_list.can_select_prev_task():
+                    if selected_position == 0 and list_position > 0:
+                        list_position -= 1
+                        redraw_all()
+                    else:
+                        selected_position -= 1
                     selected_task_list.select_prev_task()
                     print_task_row(selected_task_list, prev_task, list_position)
                 print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            if key == ord('q') or key == ord('Q'):
+            elif key == ord('q') or key == ord('Q'):
                 # quit
                 break
 
