@@ -5,11 +5,15 @@ __author__ = "rawrgrr"
 
 from sys import stdin
 import curses
+import json
 import time
 
 # TODO update help line
 # TODO handle command line arguments
 # TODO loading from files
+# TODO handle levels (tab to increase level, shift-tab to decrease level
+# TODO handle long todo-lists (longer than one screen vertically)
+# TODO customize loading from files
 # TODO show help
 # TODO allow multiple files
 # TODO handle mouse clicks
@@ -19,25 +23,48 @@ class TaskStatus:
     DOING = 2
     DONE = 3
 
+class TaskItem:
+    def __init__(self, description, status=TaskStatus.TODO, level=0):
+        self.description = description
+        if status == "todo":
+            self.status = TaskStatus.TODO
+        elif status == "doing":
+            self.status = TaskStatus.DOING
+        elif status == "done":
+            self.status = TaskStatus.DONE
+        self.level = level
+
 class TaskList:
     def __init__(self):
         self.selected_task = -1
         self.tasks = []
-        self.statuses = []
 
     def __init__(self, tasks):
         if len(tasks) >= 0:
             self.selected_task = 0
             self.tasks = tasks
             self.statuses = []
+            self.levels = []
             for i in xrange(len(self.tasks)):
                 self.statuses.append(TaskStatus.TODO)
         else:
             return self.__init__()
 
-    def add_task(self, task):
-        self.tasks.append(task)
-        self.statuses.append(TaskStatus.TODO)
+    def __init__(self, json_file_name):
+        self.selected_task = 0
+        with open(DEFAULT_JSON_FILE, 'r') as tasks_json_file:
+            json_data = json.load(tasks_json_file)
+
+        self.tasks = []
+
+        for item in json_data:
+            description = item["description"]
+            status = item["status"]
+            level = item["level"]
+            self.tasks.append(TaskItem(description, status, level))
+
+    def add_task(self, description, status=TaskStatus.TODO, level=0):
+        self.tasks.append(TaskItem(description, status, level))
 
     def can_select_next_task(self):
         return self.selected_task < len(self.tasks) - 1
@@ -63,78 +90,51 @@ class TaskList:
         self.selected_task = len(self.tasks) / 2
 
     def is_selected_task_todo(self):
-        return self.statuses[self.selected_task] == TaskStatus.TODO
+        return self.tasks[self.selected_task].status == TaskStatus.TODO
 
     def is_selected_task_doing(self):
-        return self.statuses[self.selected_task] == TaskStatus.DOING
+        return self.tasks[self.selected_task].status == TaskStatus.DOING
 
     def is_selected_task_done(self):
-        return self.statuses[self.selected_task] == TaskStatus.DONE
+        return self.tasks[self.selected_task].status == TaskStatus.DONE
 
     def transition_selected_task(self):
         if self.is_selected_task_todo():
-            self.statuses[self.selected_task] = TaskStatus.DOING
+            self.tasks[self.selected_task].status = TaskStatus.DOING
         elif self.is_selected_task_doing():
-            self.statuses[self.selected_task] = TaskStatus.DONE
+            self.tasks[self.selected_task].status = TaskStatus.DONE
 
     def untransition_selected_task(self):
         if self.is_selected_task_done():
-            self.statuses[self.selected_task] = TaskStatus.DOING
+            self.tasks[self.selected_task].status = TaskStatus.DOING
         elif self.is_selected_task_doing():
-            self.statuses[self.selected_task] = TaskStatus.TODO
+            self.tasks[self.selected_task].status = TaskStatus.TODO
+
+    def decrement_selected_task_level(self):
+        if 0 <= self.selected_task < len(self.tasks):
+            current_level = self.tasks[self.selected_task].level
+            if current_level > 0:
+                self.tasks[self.selected_task].level -= 1
+
+    def increment_selected_task_level(self):
+        if 0 <= self.selected_task < len(self.tasks):
+            self.tasks[self.selected_task].level += 1
 
     def size(self):
         return len(self.tasks)
 
-tasks = []
+DEFAULT_JSON_FILE = "tasks.json"
 
-tasks.append("foobar a")
-tasks.append("foobar b")
-tasks.append("foobar c")
-tasks.append("foobar d")
-tasks.append("foobar e")
-tasks.append("foobar f")
-tasks.append("foobar g")
-tasks.append("foobar h")
-tasks.append("foobar i")
-tasks.append("foobar j")
-tasks.append("foobar k")
-tasks.append("foobar l")
-tasks.append("foobar m")
-tasks.append("foobar n")
-tasks.append("foobar o")
-tasks.append("foobar p")
-tasks.append("foobar q")
-tasks.append("foobar r")
-tasks.append("foobar s")
-tasks.append("foobar t")
-tasks.append("foobar u")
-tasks.append("foobar v")
-tasks.append("foobar w")
-tasks.append("foobar x")
-tasks.append("foobar y")
-tasks.append("foobar z")
-tasks.append("foobar a")
-tasks.append("foobar b")
-tasks.append("foobar c")
-tasks.append("foobar d")
-tasks.append("foobar e")
-tasks.append("foobar f")
-tasks.append("foobar g")
-tasks.append("foobar h")
-tasks.append("foobar i")
-tasks.append("foobar j")
-tasks.append("foobar k")
-tasks.append("foobar l")
-tasks.append("foobar m")
-
-selected_task_list = TaskList(tasks)
+selected_task_list = TaskList(DEFAULT_JSON_FILE)
 
 OFFSET_FOR_TOP = 2
 OFFSET_FOR_BOT = -2
 SKIP_LEVEL = 10
 INVERTED = False
 DEBUG = False
+
+list_position = 0
+selected_position = 0
 
 if __name__ == "__main__":
 
@@ -168,41 +168,41 @@ if __name__ == "__main__":
         curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_BLACK)
 
         # color constants for easy reference
-        NORMAL = curses.color_pair(0)
-        RED = curses.color_pair(1)
-        GREEN = curses.color_pair(2)
-        YELLOW = curses.color_pair(3)
-        BLUE = curses.color_pair(4)
+        NORMAL  = curses.color_pair(0)
+        RED     = curses.color_pair(1)
+        GREEN   = curses.color_pair(2)
+        YELLOW  = curses.color_pair(3)
+        BLUE    = curses.color_pair(4)
         MAGENTA = curses.color_pair(5)
-        CYAN = curses.color_pair(6)
-        WHITE = curses.color_pair(7)
+        CYAN    = curses.color_pair(6)
+        WHITE   = curses.color_pair(7)
 
         # standout variants
-        STANDOUT_RED = curses.color_pair(1) | curses.A_STANDOUT
-        STANDOUT_GREEN = curses.color_pair(2) | curses.A_STANDOUT
-        STANDOUT_YELLOW = curses.color_pair(3) | curses.A_STANDOUT
-        STANDOUT_BLUE = curses.color_pair(4) | curses.A_STANDOUT
+        STANDOUT_RED     = curses.color_pair(1) | curses.A_STANDOUT
+        STANDOUT_GREEN   = curses.color_pair(2) | curses.A_STANDOUT
+        STANDOUT_YELLOW  = curses.color_pair(3) | curses.A_STANDOUT
+        STANDOUT_BLUE    = curses.color_pair(4) | curses.A_STANDOUT
         STANDOUT_MAGENTA = curses.color_pair(5) | curses.A_STANDOUT
-        STANDOUT_CYAN = curses.color_pair(6) | curses.A_STANDOUT
-        STANDOUT_WHITE = curses.color_pair(7) | curses.A_STANDOUT
+        STANDOUT_CYAN    = curses.color_pair(6) | curses.A_STANDOUT
+        STANDOUT_WHITE   = curses.color_pair(7) | curses.A_STANDOUT
 
         # bold variants
-        BOLD_RED = curses.color_pair(1) | curses.A_BOLD
-        BOLD_GREEN = curses.color_pair(2) | curses.A_BOLD
-        BOLD_YELLOW = curses.color_pair(3) | curses.A_BOLD
-        BOLD_BLUE = curses.color_pair(4) | curses.A_BOLD
+        BOLD_RED     = curses.color_pair(1) | curses.A_BOLD
+        BOLD_GREEN   = curses.color_pair(2) | curses.A_BOLD
+        BOLD_YELLOW  = curses.color_pair(3) | curses.A_BOLD
+        BOLD_BLUE    = curses.color_pair(4) | curses.A_BOLD
         BOLD_MAGENTA = curses.color_pair(5) | curses.A_BOLD
-        BOLD_CYAN = curses.color_pair(6) | curses.A_BOLD
-        BOLD_WHITE = curses.color_pair(7) | curses.A_BOLD
+        BOLD_CYAN    = curses.color_pair(6) | curses.A_BOLD
+        BOLD_WHITE   = curses.color_pair(7) | curses.A_BOLD
 
         # bold standout variants
-        BOLD_STANDOUT_RED = curses.color_pair(1) | curses.A_BOLD | curses.A_STANDOUT
-        BOLD_STANDOUT_GREEN = curses.color_pair(2) | curses.A_BOLD | curses.A_STANDOUT
-        BOLD_STANDOUT_YELLOW = curses.color_pair(3) | curses.A_BOLD | curses.A_STANDOUT
-        BOLD_STANDOUT_BLUE = curses.color_pair(4) | curses.A_BOLD | curses.A_STANDOUT
+        BOLD_STANDOUT_RED     = curses.color_pair(1) | curses.A_BOLD | curses.A_STANDOUT
+        BOLD_STANDOUT_GREEN   = curses.color_pair(2) | curses.A_BOLD | curses.A_STANDOUT
+        BOLD_STANDOUT_YELLOW  = curses.color_pair(3) | curses.A_BOLD | curses.A_STANDOUT
+        BOLD_STANDOUT_BLUE    = curses.color_pair(4) | curses.A_BOLD | curses.A_STANDOUT
         BOLD_STANDOUT_MAGENTA = curses.color_pair(5) | curses.A_BOLD | curses.A_STANDOUT
-        BOLD_STANDOUT_CYAN = curses.color_pair(6) | curses.A_BOLD | curses.A_STANDOUT
-        BOLD_STANDOUT_WHITE = curses.color_pair(7) | curses.A_BOLD | curses.A_STANDOUT
+        BOLD_STANDOUT_CYAN    = curses.color_pair(6) | curses.A_BOLD | curses.A_STANDOUT
+        BOLD_STANDOUT_WHITE   = curses.color_pair(7) | curses.A_BOLD | curses.A_STANDOUT
 
         # main printing function
         def print_row(row, message, color):
@@ -210,28 +210,30 @@ if __name__ == "__main__":
             selected_window.addnstr(row, 0, spaces, selected_window.getmaxyx()[1], color)
             selected_window.addnstr(row, 0, message, selected_window.getmaxyx()[1], color)
 
-        def print_task_row(task_list, row):
-            task_status = task_list.statuses[row]
+        def print_task_row(task_list, row, offset):
+            task_status = task_list.tasks[row].status
 
             if INVERTED:
                 if task_status == TaskStatus.TODO:
-                    print_row(row + OFFSET_FOR_TOP, " TODO    " + task_list.tasks[row] + "   ", STANDOUT_RED if task_list.selected_task == row else RED)
+                    print_row(row + OFFSET_FOR_TOP - offset, " TODO    " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", STANDOUT_RED if task_list.selected_task == row else RED)
                 elif task_status == TaskStatus.DOING:
-                    print_row(row + OFFSET_FOR_TOP, " DOING   " + task_list.tasks[row] + "   ", STANDOUT_YELLOW if task_list.selected_task == row else YELLOW)
+                    print_row(row + OFFSET_FOR_TOP - offset, " DOING   " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", STANDOUT_YELLOW if task_list.selected_task == row else YELLOW)
                 elif task_status == TaskStatus.DONE:
-                    print_row(row + OFFSET_FOR_TOP, " DONE    " + task_list.tasks[row] + "   ", STANDOUT_GREEN if task_list.selected_task == row else GREEN)
+                    print_row(row + OFFSET_FOR_TOP - offset, " DONE    " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", STANDOUT_GREEN if task_list.selected_task == row else GREEN)
             else:
                 if task_status == TaskStatus.TODO:
-                    print_row(row + OFFSET_FOR_TOP, " TODO    " + task_list.tasks[row] + "   ", RED if task_list.selected_task == row else STANDOUT_RED)
+                    print_row(row + OFFSET_FOR_TOP - offset, " TODO    " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", RED if task_list.selected_task == row else STANDOUT_RED)
                 elif task_status == TaskStatus.DOING:
-                    print_row(row + OFFSET_FOR_TOP, " DOING   " + task_list.tasks[row] + "   ", YELLOW if task_list.selected_task == row else STANDOUT_YELLOW)
+                    print_row(row + OFFSET_FOR_TOP - offset, " DOING   " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", YELLOW if task_list.selected_task == row else STANDOUT_YELLOW)
                 elif task_status == TaskStatus.DONE:
-                    print_row(row + OFFSET_FOR_TOP, " DONE    " + task_list.tasks[row] + "   ", GREEN if task_list.selected_task == row else STANDOUT_GREEN)
+                    print_row(row + OFFSET_FOR_TOP - offset, " DONE    " + (2 * task_list.tasks[row].level) * " " + task_list.tasks[row].description + "   ", GREEN if task_list.selected_task == row else STANDOUT_GREEN)
+
 
         def redraw_all():
             # print out everything once
             for i in xrange(selected_task_list.size()):
-                print_task_row(selected_task_list, i)
+                if list_position <= i < (list_position + selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT):
+                    print_task_row(selected_task_list, i, list_position)
 
             # print title and status lines
             print_row(0, "[Demo TODO List]", STANDOUT_WHITE if INVERTED else BLUE)
@@ -273,18 +275,28 @@ if __name__ == "__main__":
             elif key == ord('j') or key == curses.KEY_DOWN:
                 # go down
                 if selected_task_list.can_select_next_task():
+                    if selected_position == selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
+                        list_position += 1
+                        redraw_all()
+                    else:
+                        selected_position += 1
                     prev_task = selected_task_list.selected_task
                     selected_task_list.select_next_task()
-                    print_task_row(selected_task_list, prev_task)
-                    print_task_row(selected_task_list, selected_task_list.selected_task)
+                    print_task_row(selected_task_list, prev_task, list_position)
+                    print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == ord('k') or key == curses.KEY_UP:
                 # go up
                 if selected_task_list.can_select_prev_task():
+                    if selected_position == 0 and list_position > 0:
+                        list_position -= 1
+                        redraw_all()
+                    else:
+                        selected_position -= 1
                     prev_task = selected_task_list.selected_task
                     selected_task_list.select_prev_task()
-                    print_task_row(selected_task_list, prev_task)
-                    print_task_row(selected_task_list, selected_task_list.selected_task)
+                    print_task_row(selected_task_list, prev_task, list_position)
+                    print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == ord('J') or key == curses.KEY_NPAGE:
                 # go down by SKIP_LEVEL
@@ -329,6 +341,16 @@ if __name__ == "__main__":
                 # invert colors
                 INVERTED = not INVERTED
                 redraw_all()
+
+            elif key == ord('1'):
+                # decrement level
+                selected_task_list.decrement_selected_task_level()
+                print_task_row(selected_task_list, selected_task_list.selected_task)
+
+            elif key == ord('2'):
+                # increment level
+                selected_task_list.increment_selected_task_level()
+                print_task_row(selected_task_list, selected_task_list.selected_task)
 
             # debug information
             if DEBUG:
