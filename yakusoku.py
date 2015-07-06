@@ -135,6 +135,7 @@ class TaskList:
 OFFSET_FOR_TOP = 2
 OFFSET_FOR_BOT = -3
 SKIP_LEVEL = 10
+SPACES_PER_LEVEL = 2
 INVERTED = False
 DEBUG = False
 
@@ -234,18 +235,18 @@ if __name__ == "__main__":
 
             if INVERTED:
                 if task_status == TaskStatus.TODO:
-                    print_row(row_offset, " TODO    " + (2 * level) * " " + description + "   ", STANDOUT_RED    if selected else RED)
+                    print_row(row_offset, " TODO    " + (level * SPACES_PER_LEVEL) * " " + description + "   ", STANDOUT_RED    if selected else RED)
                 elif task_status == TaskStatus.DOING:
-                    print_row(row_offset, " DOING   " + (2 * level) * " " + description + "   ", STANDOUT_YELLOW if selected else YELLOW)
+                    print_row(row_offset, " DOING   " + (level * SPACES_PER_LEVEL) * " " + description + "   ", STANDOUT_YELLOW if selected else YELLOW)
                 elif task_status == TaskStatus.DONE:
-                    print_row(row_offset, " DONE    " + (2 * level) * " " + description + "   ", STANDOUT_GREEN  if selected else GREEN)
+                    print_row(row_offset, " DONE    " + (level * SPACES_PER_LEVEL) * " " + description + "   ", STANDOUT_GREEN  if selected else GREEN)
             else:
                 if task_status == TaskStatus.TODO:
-                    print_row(row_offset, " TODO    " + (2 * level) * " " + description + "   ", RED             if selected else STANDOUT_RED)
+                    print_row(row_offset, " TODO    " + (level * SPACES_PER_LEVEL) * " " + description + "   ", RED             if selected else STANDOUT_RED)
                 elif task_status == TaskStatus.DOING:
-                    print_row(row_offset, " DOING   " + (2 * level) * " " + description + "   ", YELLOW          if selected else STANDOUT_YELLOW)
+                    print_row(row_offset, " DOING   " + (level * SPACES_PER_LEVEL) * " " + description + "   ", YELLOW          if selected else STANDOUT_YELLOW)
                 elif task_status == TaskStatus.DONE:
-                    print_row(row_offset, " DONE    " + (2 * level) * " " + description + "   ", GREEN           if selected else STANDOUT_GREEN)
+                    print_row(row_offset, " DONE    " + (level * SPACES_PER_LEVEL) * " " + description + "   ", GREEN           if selected else STANDOUT_GREEN)
 
 
         def redraw_all():
