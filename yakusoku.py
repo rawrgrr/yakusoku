@@ -279,11 +279,10 @@ if __name__ == "__main__":
                 prev_task = selected_task_list.selected_task
                 selected_task_list.transition_selected_task()
                 if selected_task_list.is_selected_task_done() and selected_task_list.can_select_next_task():
-                    if selected_position == selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
+                    if selected_position == list_position + selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
                         list_position += 1
                         redraw_all()
-                    else:
-                        selected_position += 1
+                    selected_position += 1
                     selected_task_list.select_next_task()
                     print_task_row(selected_task_list, prev_task, list_position)
                 print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
@@ -293,11 +292,10 @@ if __name__ == "__main__":
                 prev_task = selected_task_list.selected_task
                 selected_task_list.untransition_selected_task()
                 if selected_task_list.is_selected_task_todo() and selected_task_list.can_select_prev_task():
-                    if selected_position == 0 and list_position > 0:
+                    if selected_position == list_position:
                         list_position -= 1
                         redraw_all()
-                    else:
-                        selected_position -= 1
+                    selected_position -= 1
                     selected_task_list.select_prev_task()
                     print_task_row(selected_task_list, prev_task, list_position)
                 print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
@@ -309,11 +307,10 @@ if __name__ == "__main__":
             elif key == ord('j') or key == curses.KEY_DOWN:
                 # go down
                 if selected_task_list.can_select_next_task():
-                    if selected_position == selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
+                    if selected_position == list_position + selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
                         list_position += 1
                         redraw_all()
-                    else:
-                        selected_position += 1
+                    selected_position += 1
                     prev_task = selected_task_list.selected_task
                     selected_task_list.select_next_task()
                     print_task_row(selected_task_list, prev_task, list_position)
@@ -322,11 +319,10 @@ if __name__ == "__main__":
             elif key == ord('k') or key == curses.KEY_UP:
                 # go up
                 if selected_task_list.can_select_prev_task():
-                    if selected_position == 0 and list_position > 0:
+                    if selected_position == list_position:
                         list_position -= 1
                         redraw_all()
-                    else:
-                        selected_position -= 1
+                    selected_position -= 1
                     prev_task = selected_task_list.selected_task
                     selected_task_list.select_prev_task()
                     print_task_row(selected_task_list, prev_task, list_position)
@@ -338,16 +334,17 @@ if __name__ == "__main__":
                 should_redraw_all = False
                 for i in xrange(SKIP_LEVEL):
                     if selected_task_list.can_select_next_task():
-                        if selected_position == selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
+                        if selected_position == list_position + selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
                             list_position += 1
                             should_redraw_all = True
-                        else:
-                            selected_position += 1
+                        selected_position += 1
                         selected_task_list.select_next_task()
                 if should_redraw_all:
                     redraw_all()
-                print_task_row(selected_task_list, prev_task, list_position)
-                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
+                if prev_task < list_position + selected_window.getmaxyx()[0]:
+                    print_task_row(selected_task_list, prev_task, list_position)
+                if selected_task_list.selected_task < list_position + selected_window.getmaxyx()[0]:
+                    print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == ord('K') or key == curses.KEY_PPAGE:
                 # go up by SKIP_LEVEL
@@ -355,43 +352,62 @@ if __name__ == "__main__":
                 should_redraw_all = False
                 for i in xrange(SKIP_LEVEL):
                     if selected_task_list.can_select_prev_task():
-                        if selected_position == 0 and list_position > 0:
+                        if selected_position == list_position:
                             list_position -= 1
                             should_redraw_all = True
-                        else:
-                            selected_position -= 1
+                        selected_position -= 1
                         selected_task_list.select_prev_task()
                 if should_redraw_all:
                     redraw_all()
-                print_task_row(selected_task_list, prev_task, list_position)
-                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
+                if prev_task < list_position + selected_window.getmaxyx()[0]:
+                    print_task_row(selected_task_list, prev_task, list_position)
+                if selected_task_list.selected_task < list_position + selected_window.getmaxyx()[0]:
+                    print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == curses.KEY_END or key == 336 or key == ord('L'):
-                # got to the bottom
+                # got to the bottom of the viewable area
                 prev_task = selected_task_list.selected_task
-                #selected_task_list.select_last_task()
-                selected_position = list_position + selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1
+                window_size = selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1
+                selected_position = min(selected_task_list.size() - 1, list_position + window_size)
                 selected_task_list.select(selected_position)
-                print_task_row(selected_task_list, prev_task, list_position)
-                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
+                if prev_task < list_position + selected_window.getmaxyx()[0]:
+                    print_task_row(selected_task_list, prev_task, list_position)
+                if selected_task_list.selected_task < list_position + selected_window.getmaxyx()[0]:
+                    print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == curses.KEY_HOME or key == 337 or key == ord('H'):
-                # go to the top
+                # go to the top of the viewable area
                 prev_task = selected_task_list.selected_task
-                #selected_task_list.select_first_task()
                 selected_position = list_position
                 selected_task_list.select(selected_position)
-                print_task_row(selected_task_list, prev_task, list_position)
-                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
+                if prev_task < list_position + selected_window.getmaxyx()[0]:
+                    print_task_row(selected_task_list, prev_task, list_position)
+                if selected_task_list.selected_task < list_position + selected_window.getmaxyx()[0]:
+                    print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == ord('M'):
-                # go to the middle
+                # go to the middle of the viewable area
                 prev_task = selected_task_list.selected_task
-                #selected_task_list.select_middle_task()
-                selected_position = list_position + (selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1) / 2
+                selected_position = list_position + min(selected_task_list.size() / 2 - 1, ((selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT) / 2) - 1)
                 selected_task_list.select(selected_position)
-                print_task_row(selected_task_list, prev_task, list_position)
-                print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
+                if prev_task < list_position + selected_window.getmaxyx()[0]:
+                    print_task_row(selected_task_list, prev_task, list_position)
+                if selected_task_list.selected_task < list_position + selected_window.getmaxyx()[0]:
+                    print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
+
+            elif key == ord('g'):
+                # go to the top
+                selected_position = 0
+                list_position = 0
+                selected_task_list.select(selected_position)
+                redraw_all()
+
+            elif key == ord('G'):
+                window_size = selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1
+                list_position = max(0, selected_task_list.size() - window_size - 1)
+                selected_position = list_position + min(selected_task_list.size() - 1, window_size)
+                selected_task_list.select(selected_position)
+                redraw_all()
 
             elif key == ord('i'):
                 # invert colors
