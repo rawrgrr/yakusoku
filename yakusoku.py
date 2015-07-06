@@ -4,6 +4,8 @@
 __author__ = "rawrgrr"
 
 from sys import stdin
+
+import argparse
 import curses
 import json
 import time
@@ -51,7 +53,7 @@ class TaskList:
 
     def __init__(self, json_file_name):
         self.selected_task = 0
-        with open(DEFAULT_JSON_FILE, 'r') as tasks_json_file:
+        with open(json_file_name, 'r') as tasks_json_file:
             json_data = json.load(tasks_json_file)
 
         self.tasks = []
@@ -130,10 +132,6 @@ class TaskList:
     def size(self):
         return len(self.tasks)
 
-DEFAULT_JSON_FILE = "tasks.json"
-
-selected_task_list = TaskList(DEFAULT_JSON_FILE)
-
 OFFSET_FOR_TOP = 2
 OFFSET_FOR_BOT = -3
 SKIP_LEVEL = 10
@@ -144,6 +142,16 @@ list_position = 0
 selected_position = 0
 
 if __name__ == "__main__":
+
+    # parse arguments
+    parser = argparse.ArgumentParser(
+            description="CLI TODO List Manager",
+            epilog="The json file needs to be structured like:"
+            )
+    parser.add_argument("json_file", metavar="filename", help="tasks in a json file")
+    args = parser.parse_args()
+
+    selected_task_list = TaskList(args.json_file)
 
     try:
         # initial curses window setup
