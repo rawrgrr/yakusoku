@@ -414,12 +414,12 @@ if __name__ == "__main__":
                 INVERTED = not INVERTED
                 redraw_all()
 
-            elif key == ord('1'):
+            elif key == 353:
                 # decrement level
                 selected_task_list.decrement_selected_task_level()
                 print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            elif key == ord('2'):
+            elif key == 9:
                 # increment level
                 selected_task_list.increment_selected_task_level()
                 print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
