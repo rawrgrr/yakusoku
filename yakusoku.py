@@ -24,11 +24,11 @@ class TaskStatus:
 class TaskItem:
     def __init__(self, description, status=TaskStatus.TODO, level=0):
         self.description = description
-        if status == "todo":
+        if status.lower() == "todo":
             self.status = TaskStatus.TODO
-        elif status == "doing":
+        elif status.lower() == "doing":
             self.status = TaskStatus.DOING
-        elif status == "done":
+        elif status.lower() == "done":
             self.status = TaskStatus.DONE
         self.level = level
 
