@@ -134,10 +134,7 @@ class TaskList:
 
 OFFSET_FOR_TOP = 2
 OFFSET_FOR_BOT = -3
-SKIP_LEVEL = 10
-SPACES_PER_LEVEL = 2
 INVERTED = False
-DEBUG = False
 
 list_position = 0
 selected_position = 0
@@ -149,7 +146,10 @@ if __name__ == "__main__":
             description="CLI TODO List Manager",
             epilog="The json file needs to be structured like:"
             )
-    parser.add_argument("json_file", metavar="filename", help="tasks in a json file")
+    parser.add_argument('json_file', metavar="filename", help="Tasks in a json file")
+    parser.add_argument('-i', '--indentation', metavar="spaces", type=int, default=4, help="Number of spaces per level of indentation")
+    parser.add_argument('-s', '--scroll-lines', metavar="lines", type=int, default=10, help="Number of lines to move per scroll")
+    parser.add_argument('-d', '--debug', action='store_true', help="Enable debug mode")
     args = parser.parse_args()
 
     selected_task_list = TaskList(args.json_file)
@@ -235,18 +235,18 @@ if __name__ == "__main__":
 
             if INVERTED:
                 if task_status == TaskStatus.TODO:
-                    print_row(row_offset, " TODO    " + (level * SPACES_PER_LEVEL) * " " + description + "   ", STANDOUT_RED    if selected else RED)
+                    print_row(row_offset, " TODO    " + (level * args.indentation) * " " + description + "   ", STANDOUT_RED    if selected else RED)
                 elif task_status == TaskStatus.DOING:
-                    print_row(row_offset, " DOING   " + (level * SPACES_PER_LEVEL) * " " + description + "   ", STANDOUT_YELLOW if selected else YELLOW)
+                    print_row(row_offset, " DOING   " + (level * args.indentation) * " " + description + "   ", STANDOUT_YELLOW if selected else YELLOW)
                 elif task_status == TaskStatus.DONE:
-                    print_row(row_offset, " DONE    " + (level * SPACES_PER_LEVEL) * " " + description + "   ", STANDOUT_GREEN  if selected else GREEN)
+                    print_row(row_offset, " DONE    " + (level * args.indentation) * " " + description + "   ", STANDOUT_GREEN  if selected else GREEN)
             else:
                 if task_status == TaskStatus.TODO:
-                    print_row(row_offset, " TODO    " + (level * SPACES_PER_LEVEL) * " " + description + "   ", RED             if selected else STANDOUT_RED)
+                    print_row(row_offset, " TODO    " + (level * args.indentation) * " " + description + "   ", RED             if selected else STANDOUT_RED)
                 elif task_status == TaskStatus.DOING:
-                    print_row(row_offset, " DOING   " + (level * SPACES_PER_LEVEL) * " " + description + "   ", YELLOW          if selected else STANDOUT_YELLOW)
+                    print_row(row_offset, " DOING   " + (level * args.indentation) * " " + description + "   ", YELLOW          if selected else STANDOUT_YELLOW)
                 elif task_status == TaskStatus.DONE:
-                    print_row(row_offset, " DONE    " + (level * SPACES_PER_LEVEL) * " " + description + "   ", GREEN           if selected else STANDOUT_GREEN)
+                    print_row(row_offset, " DONE    " + (level * args.indentation) * " " + description + "   ", GREEN           if selected else STANDOUT_GREEN)
 
 
         def redraw_all():
@@ -330,10 +330,10 @@ if __name__ == "__main__":
                     print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == ord('J') or key == curses.KEY_NPAGE:
-                # go down by SKIP_LEVEL
+                # go down by args.scroll_lines
                 prev_task = selected_task_list.selected_task
                 should_redraw_all = False
-                for i in xrange(SKIP_LEVEL):
+                for i in xrange(args.scroll_lines):
                     if selected_task_list.can_select_next_task():
                         if selected_position == list_position + selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
                             list_position += 1
@@ -348,10 +348,10 @@ if __name__ == "__main__":
                     print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             elif key == ord('K') or key == curses.KEY_PPAGE:
-                # go up by SKIP_LEVEL
+                # go up by args.scroll_lines
                 prev_task = selected_task_list.selected_task
                 should_redraw_all = False
-                for i in xrange(SKIP_LEVEL):
+                for i in xrange(args.scroll_lines):
                     if selected_task_list.can_select_prev_task():
                         if selected_position == list_position:
                             list_position -= 1
@@ -426,7 +426,7 @@ if __name__ == "__main__":
                 print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
             # debug information
-            if DEBUG:
+            if args.debug:
                 if key < 256:
                     #print_row((selected_window.getmaxyx()[0] + OFFSET_FOR_BOT - 1), "Character: " + chr(key), WHITE if INVERTED else STANDOUT_WHITE)
                     print_row((selected_window.getmaxyx()[0] + OFFSET_FOR_BOT - 1), "Character: " + str(key), WHITE if INVERTED else STANDOUT_WHITE)
