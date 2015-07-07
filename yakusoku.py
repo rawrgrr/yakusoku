@@ -11,9 +11,6 @@ import json
 import time
 
 # TODO update help line
-# TODO handle command line arguments
-# TODO loading from files
-# TODO handle levels (tab to increase level, shift-tab to decrease level
 # TODO customize loading from files
 # TODO show help
 # TODO allow multiple files
