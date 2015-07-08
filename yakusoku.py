@@ -10,10 +10,8 @@ import curses
 import json
 import time
 
-# TODO update help line
 # TODO customize loading from files
-# TODO show help
-# TODO allow multiple files
+# TODO create stacks of workflows
 # TODO handle mouse clicks
 
 class TaskStatus:
@@ -130,11 +128,12 @@ class TaskList:
         return len(self.tasks)
 
 OFFSET_FOR_TOP = 2
-OFFSET_FOR_BOT = -3
-INVERTED = False
+OFFSET_FOR_BOT = -1
+LEFT_PADDING = 8 * ' '
 
 list_position = 0
 selected_position = 0
+show_help = False
 
 if __name__ == "__main__":
 
@@ -144,12 +143,14 @@ if __name__ == "__main__":
             epilog="The json file needs to be structured like:"
             )
     parser.add_argument('json_file', metavar="filename", help="Tasks in a json file")
-    parser.add_argument('-i', '--indentation', metavar="spaces", type=int, default=4, help="Number of spaces per level of indentation")
+    parser.add_argument('-t', '--indentation', metavar="spaces", type=int, default=4, help="Number of spaces per level of indentation")
+    parser.add_argument('-i', '--invert', action='store_true', help="Invert colors")
     parser.add_argument('-s', '--scroll-lines', metavar="lines", type=int, default=10, help="Number of lines to move per scroll")
     parser.add_argument('-d', '--debug', action='store_true', help="Enable debug mode")
     args = parser.parse_args()
 
     selected_task_list = TaskList(args.json_file)
+    INVERTED = args.invert
 
     try:
         # initial curses window setup
@@ -232,38 +233,77 @@ if __name__ == "__main__":
 
             if INVERTED:
                 if task_status == TaskStatus.TODO:
-                    print_row(row_offset, " TODO    " + (level * args.indentation) * " " + description + "   ", STANDOUT_RED    if selected else RED)
+                    status = "TODO    "
+                    standout_color = STANDOUT_RED
+                    color = RED
                 elif task_status == TaskStatus.DOING:
-                    print_row(row_offset, " DOING   " + (level * args.indentation) * " " + description + "   ", STANDOUT_YELLOW if selected else YELLOW)
+                    status = "DOING   "
+                    standout_color = STANDOUT_YELLOW
+                    color = YELLOW
                 elif task_status == TaskStatus.DONE:
-                    print_row(row_offset, " DONE    " + (level * args.indentation) * " " + description + "   ", STANDOUT_GREEN  if selected else GREEN)
+                    status = "DONE    "
+                    standout_color = STANDOUT_GREEN
+                    color = GREEN
+                text = LEFT_PADDING + status + (level * args.indentation) * " " + description
+                print_row(row_offset, text, standout_color if selected else color)
             else:
                 if task_status == TaskStatus.TODO:
-                    print_row(row_offset, " TODO    " + (level * args.indentation) * " " + description + "   ", RED             if selected else STANDOUT_RED)
+                    status = "TODO    "
+                    color = RED
+                    standout_color = STANDOUT_RED
                 elif task_status == TaskStatus.DOING:
-                    print_row(row_offset, " DOING   " + (level * args.indentation) * " " + description + "   ", YELLOW          if selected else STANDOUT_YELLOW)
+                    status = "DOING   "
+                    color = YELLOW
+                    standout_color = STANDOUT_YELLOW
                 elif task_status == TaskStatus.DONE:
-                    print_row(row_offset, " DONE    " + (level * args.indentation) * " " + description + "   ", GREEN           if selected else STANDOUT_GREEN)
+                    status = "DONE    "
+                    color = GREEN
+                    standout_color = STANDOUT_GREEN
+                text = LEFT_PADDING + status + (level * args.indentation) * " " + description
+                print_row(row_offset, text, color if selected else standout_color)
 
 
         def redraw_all():
-            # print title and status lines
-            print_row(0, "[Demo TODO List]", STANDOUT_WHITE if INVERTED else BLUE)
-            print_row(1, " Status  Task"   , STANDOUT_WHITE if INVERTED else MAGENTA)
+            if show_help:
+                for row in xrange(selected_window.getmaxyx()[0] - 1):
+                    print_row(row, "", NORMAL)
+                help_texts = [
+                        "",
+                        "",
+                        "          KEY(S)            ACTION",
+                        "",
+                        "          h/?               show/hide this help menu",
+                        "",
+                        "          j/J/<up-arrow>    down",
+                        "          k/K/<down-arrow>  up",
+                        "",
+                        "          <space>           TODO --> DOING --> DONE",
+                        "          <backspace>       DONE --> DOING --> TODO",
+                        "",
+                        "          H                 move to top of visible items",
+                        "          M                 move to middle of visible items",
+                        "          L                 move to bottom of visible items",
+                        "",
+                        "          g                 move and scroll to the top of the list",
+                        "          G                 move and scroll to the bottom of the list",
+                        "",
+                        "          i                 invert colors"
+                        ]
+                for row, text in zip(xrange(len(help_texts)), help_texts):
+                    print_row(row + OFFSET_FOR_TOP, text, NORMAL)
+            else:
+                # print title and status lines
+                print_row(0, LEFT_PADDING + "[Demo TODO List]", STANDOUT_WHITE if INVERTED else BLUE)
+                print_row(1, LEFT_PADDING + "Status  Task"   , STANDOUT_WHITE if INVERTED else MAGENTA)
 
-            # print out help
-            space_for_items = selected_window.getmaxyx()[0] + OFFSET_FOR_BOT
-            print_row(space_for_items, "", STANDOUT_WHITE if INVERTED else WHITE)
-            print_row(space_for_items, " j: down        k: up      space: transition task    backspace: untransition task", STANDOUT_WHITE if INVERTED else WHITE)
-            print_row(space_for_items + 1, "", STANDOUT_WHITE if INVERTED else WHITE)
-            print_row(space_for_items + 1, " H: top         M: middle      L: bottom      i: invert colors", STANDOUT_WHITE if INVERTED else WHITE)
+                # print out help
+                space_for_items = selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT
+                # print out everything once
+                for i in xrange(selected_task_list.size()):
+                    if list_position <= i < (list_position + space_for_items):
+                        print_task_row(selected_task_list, i, list_position)
 
-            # print out everything once
-            for i in xrange(selected_task_list.size()):
-                if list_position <= i < (list_position + space_for_items - OFFSET_FOR_TOP):
-                    print_task_row(selected_task_list, i, list_position)
-
-            selected_window.refresh()
+                selected_window.refresh()
 
         redraw_all()
 
@@ -271,8 +311,9 @@ if __name__ == "__main__":
         while True:
             #key = stdin.read(1)
             key = selected_window.getch()
+            disable_movement = show_help
 
-            if key == ord(' '):
+            if key == ord(' ') and not disable_movement:
                 # transition task
                 prev_task = selected_task_list.selected_task
                 selected_task_list.transition_selected_task()
@@ -285,7 +326,7 @@ if __name__ == "__main__":
                     print_task_row(selected_task_list, prev_task, list_position)
                 print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            elif key == 127 or key == curses.KEY_DC or key == curses.KEY_BACKSPACE:
+            elif (key == 127 or key == curses.KEY_DC or key == curses.KEY_BACKSPACE) and not disable_movement:
                 # untransition task
                 prev_task = selected_task_list.selected_task
                 selected_task_list.untransition_selected_task()
@@ -302,7 +343,7 @@ if __name__ == "__main__":
                 # quit
                 break
 
-            elif key == ord('j') or key == curses.KEY_DOWN:
+            elif (key == ord('j') or key == curses.KEY_DOWN) and not disable_movement:
                 # go down
                 if selected_task_list.can_select_next_task():
                     if selected_position == list_position + selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1:
@@ -314,7 +355,7 @@ if __name__ == "__main__":
                     print_task_row(selected_task_list, prev_task, list_position)
                     print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            elif key == ord('k') or key == curses.KEY_UP:
+            elif (key == ord('k') or key == curses.KEY_UP) and not disable_movement:
                 # go up
                 if selected_task_list.can_select_prev_task():
                     if selected_position == list_position:
@@ -326,7 +367,7 @@ if __name__ == "__main__":
                     print_task_row(selected_task_list, prev_task, list_position)
                     print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            elif key == ord('J') or key == curses.KEY_NPAGE:
+            elif (key == ord('J') or key == curses.KEY_NPAGE) and not disable_movement:
                 # go down by args.scroll_lines
                 prev_task = selected_task_list.selected_task
                 should_redraw_all = False
@@ -344,7 +385,7 @@ if __name__ == "__main__":
                 if selected_task_list.selected_task < list_position + selected_window.getmaxyx()[0]:
                     print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            elif key == ord('K') or key == curses.KEY_PPAGE:
+            elif (key == ord('K') or key == curses.KEY_PPAGE) and not disable_movement:
                 # go up by args.scroll_lines
                 prev_task = selected_task_list.selected_task
                 should_redraw_all = False
@@ -362,7 +403,7 @@ if __name__ == "__main__":
                 if selected_task_list.selected_task < list_position + selected_window.getmaxyx()[0]:
                     print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            elif key == curses.KEY_END or key == 336 or key == ord('L'):
+            elif (key == curses.KEY_END or key == 336 or key == ord('L')) and not disable_movement:
                 # got to the bottom of the viewable area
                 prev_task = selected_task_list.selected_task
                 window_size = selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1
@@ -373,7 +414,7 @@ if __name__ == "__main__":
                 if selected_task_list.selected_task < list_position + selected_window.getmaxyx()[0]:
                     print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            elif key == curses.KEY_HOME or key == 337 or key == ord('H'):
+            elif (key == curses.KEY_HOME or key == 337 or key == ord('H')) and not disable_movement:
                 # go to the top of the viewable area
                 prev_task = selected_task_list.selected_task
                 selected_position = list_position
@@ -383,7 +424,7 @@ if __name__ == "__main__":
                 if selected_task_list.selected_task < list_position + selected_window.getmaxyx()[0]:
                     print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            elif key == ord('M'):
+            elif key == ord('M') and not disable_movement:
                 # go to the middle of the viewable area
                 prev_task = selected_task_list.selected_task
                 selected_position = list_position + min(selected_task_list.size() / 2 - 1, ((selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT) / 2) - 1)
@@ -393,14 +434,14 @@ if __name__ == "__main__":
                 if selected_task_list.selected_task < list_position + selected_window.getmaxyx()[0]:
                     print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            elif key == ord('g'):
+            elif key == ord('g') and not disable_movement:
                 # go to the top
                 selected_position = 0
                 list_position = 0
                 selected_task_list.select(selected_position)
                 redraw_all()
 
-            elif key == ord('G'):
+            elif key == ord('G') and not disable_movement:
                 window_size = selected_window.getmaxyx()[0] - OFFSET_FOR_TOP + OFFSET_FOR_BOT - 1
                 list_position = max(0, selected_task_list.size() - window_size - 1)
                 selected_position = list_position + min(selected_task_list.size() - 1, window_size)
@@ -412,12 +453,17 @@ if __name__ == "__main__":
                 INVERTED = not INVERTED
                 redraw_all()
 
-            elif key == 353:
+            elif key == ord('h') or key == ord('?'):
+                # show help panel
+                show_help = not show_help
+                redraw_all()
+
+            elif key == 353 and not disable_movement:
                 # decrement level
                 selected_task_list.decrement_selected_task_level()
                 print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
 
-            elif key == 9:
+            elif key == 9 and not disable_movement:
                 # increment level
                 selected_task_list.increment_selected_task_level()
                 print_task_row(selected_task_list, selected_task_list.selected_task, list_position)
